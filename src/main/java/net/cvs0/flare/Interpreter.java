@@ -123,8 +123,26 @@ public class Interpreter implements ASTVisitor<Value> {
 
     @Override
     public Value visitVariableDeclaration(VariableDeclaration node) {
-        InterpreterUtil.defineVariable(context.get(), node.name, node.typeToken,
-            node.initializer != null ? evaluate(node.initializer) : null);
+        Value initValue = node.initializer != null
+                ? evaluate(node.initializer)
+                : defaultValue(node.typeToken);
+
+        Type expectedType = InterpreterUtil.tokenTypeToType(node.typeToken);
+
+        if (initValue != null && initValue.type != expectedType) {
+            throw new RuntimeException(
+                    "Type error: cannot assign " + initValue.type +
+                            " to variable '" + node.name.lexeme +
+                            "' of type " + expectedType
+            );
+        }
+
+        InterpreterUtil.defineVariable(
+                context.get(),
+                node.name,
+                node.typeToken,
+                initValue
+        );
         return null;
     }
 
