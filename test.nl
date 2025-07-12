@@ -1,29 +1,16 @@
-import std as standard;
-import string;
-
-tag deprecated("use greetNew() instead")
-func greet(name: string) {
-    standard.print("Hello, " + name + "!");
+func testReturn() {
+    return 42;
 }
 
-func greetNew(name: string, age: int) {
-    standard.print("Hello, " + name + "! You are " + age + " years old.");
+func getStr(name: string) {
+    return "Hello, " + name;
 }
 
 func main() {
-    string name = "World";
-    boolean deprecated = true;
+    int x = testReturn();
+    std.print(x);
 
-    standard.print(deprecated);
+    string greeting = testReturn();
 
-    greet(name);
-    greetNew(name, 30);
-
-    standard.print(string.length(name) + " characters in name.");
-
-    if (deprecated) {
-        standard.print("The greet function is deprecated. Use greetNew instead.");
-    } else {
-        standard.print("The greet function is not deprecated.");
-    }
+    std.print(greeting);
 }
