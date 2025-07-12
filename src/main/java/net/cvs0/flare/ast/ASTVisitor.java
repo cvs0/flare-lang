@@ -23,6 +23,7 @@ public interface ASTVisitor<R> {
     R visitVariableReference(VariableReference node);
     R visitDotAccess(DotAccess node);
     R visitUnary(Unary node);
+    R visitTernary(Ternary node);
     R visitFunctionDeclaration(FunctionDeclaration node);
     R visitFunctionCall(FunctionCall node);
     R visitImportStatement(ImportStatement node);

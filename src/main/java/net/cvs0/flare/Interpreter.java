@@ -595,6 +595,17 @@ public class Interpreter implements ASTVisitor<Value> {
         }
     }
 
+    @Override
+    public Value visitTernary(Ternary node) {
+        Value conditionValue = evaluate(node.condition);
+
+        if (InterpreterUtil.isTruthy(conditionValue)) {
+            return evaluate(node.trueExpr);
+        } else {
+            return evaluate(node.falseExpr);
+        }
+    }
+
     public FiberManager getFiberManager() {
         return fiberManager;
     }

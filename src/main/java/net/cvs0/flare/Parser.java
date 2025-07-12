@@ -319,7 +319,17 @@ public class Parser {
             Expression right = logicalAnd();
             expr = new Binary(expr, operator, right);
         }
-        return expr;
+        return ternary(expr);
+    }
+
+    private Expression ternary(Expression condition) {
+        if (ctx.match(TokenType.QUESTION_MARK)) {
+            Expression trueExpr = expression();
+            consume(TokenType.COLON, "Expect ':' after true expression in ternary.");
+            Expression falseExpr = expression();
+            return new Ternary(condition, trueExpr, falseExpr);
+        }
+        return condition;
     }
 
     private Expression logicalAnd() {

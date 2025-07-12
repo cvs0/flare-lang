@@ -78,6 +78,7 @@ public class Lexer {
                 break;
             case '-': addToken(TokenType.MINUS); break;
             case '*': addToken(TokenType.STAR); break;
+            case '?': addToken(TokenType.QUESTION_MARK); break;
             case '/':
                 if (ctx.peek() == '/') {
                     while (ctx.peek() != '\n' && !ctx.isAtEnd()) ctx.advance();
