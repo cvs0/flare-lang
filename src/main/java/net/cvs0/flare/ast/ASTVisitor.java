@@ -18,11 +18,13 @@ public interface ASTVisitor<R> {
     R visitReturnStatement(ReturnStatement node);
     R visitSwitchStatement(SwitchStatement node);
     R visitForStatement(ForStatement node);
+    R visitWhileStatement(WhileStatement node);
     R visitBinary(Binary node);
     R visitLiteral(Literal node);
     R visitVariableReference(VariableReference node);
     R visitDotAccess(DotAccess node);
     R visitUnary(Unary node);
+    R visitTernary(Ternary node);
     R visitFunctionDeclaration(FunctionDeclaration node);
     R visitFunctionCall(FunctionCall node);
     R visitImportStatement(ImportStatement node);

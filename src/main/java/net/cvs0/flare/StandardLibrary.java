@@ -31,6 +31,7 @@ public class StandardLibrary {
         registerNetLib();
         registerTimeLib();
         registerRandLib();
+        registerVmLib();
     }
     
     private static void registerStdLib() {
@@ -86,6 +87,17 @@ public class StandardLibrary {
             }
         });
         libraries.put("net", netLib);
+    }
+
+    private static void registerVmLib() {
+        Map<String, Function<List<Value>, Value>> vmLib = new HashMap<>();
+
+        vmLib.put("freeMemory", args -> new Value(Type.INT, Runtime.getRuntime().freeMemory()));
+        vmLib.put("totalMemory", args -> new Value(Type.INT, Runtime.getRuntime().totalMemory()));
+        vmLib.put("maxMemory", args -> new Value(Type.INT, Runtime.getRuntime().maxMemory()));
+        vmLib.put("usedMemory", args -> new Value(Type.INT, Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
+
+        libraries.put("vm", vmLib);
     }
 
     private static void registerTimeLib() {

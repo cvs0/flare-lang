@@ -41,6 +41,7 @@ public class Lexer {
         keywords.put("for", TokenType.FOR);
         keywords.put("var", TokenType.VAR);
         keywords.put("as", TokenType.AS);
+        keywords.put("while", TokenType.WHILE);
     }
 
     public Lexer(String source) {
@@ -78,6 +79,7 @@ public class Lexer {
                 break;
             case '-': addToken(TokenType.MINUS); break;
             case '*': addToken(TokenType.STAR); break;
+            case '?': addToken(TokenType.QUESTION_MARK); break;
             case '/':
                 if (ctx.peek() == '/') {
                     while (ctx.peek() != '\n' && !ctx.isAtEnd()) ctx.advance();

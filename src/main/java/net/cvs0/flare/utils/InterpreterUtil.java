@@ -40,5 +40,20 @@ public class InterpreterUtil {
         if (value.type == Type.STRING) return !((String)value.data).isEmpty();
         return value.data != null;
     }
+
+    public static Type tokenTypeToType(Token typeToken) {
+        switch (typeToken.type) {
+            case INT:          return Type.INT;
+            case FLOAT:        return Type.FLOAT;
+            case STRING_TYPE:  return Type.STRING;
+            case BOOLEAN:      return Type.BOOL;
+            // allow explicit "any"
+            case IDENTIFIER:
+                if ("any".equals(typeToken.lexeme)) return Type.ANY;
+                // fall through to error
+            default:
+                throw new RuntimeException("Unknown type token: " + typeToken.lexeme);
+        }
+    }
 }
 

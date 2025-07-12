@@ -9,7 +9,7 @@ Use the `import` keyword to include code from another module:
 import math;
 ```
 
-- This loads the module from a file named `math.lang`.
+- This loads the module.
 - Imported modules expose their functions and variables as properties.
 
 ## Accessing Module Members
@@ -17,7 +17,7 @@ Use dot notation to access functions or variables from a module:
 
 ```lang
 import math;
-var result = math.add(2, 3);
+int result = math.add(2, 3);
 ```
 
 ## Module Scope

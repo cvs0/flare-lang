@@ -15,6 +15,6 @@ This document covers the basic syntax rules of Flare.
 ## Example
 ```lang
 // This is a comment
-var x: int = 5;
+int x = 5;
 ```
 

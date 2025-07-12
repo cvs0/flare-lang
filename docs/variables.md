@@ -6,9 +6,10 @@ This document explains variable declaration, assignment, and supported types in 
 Declare a variable with a type and optional initializer:
 
 ```lang
-var x: int = 10;
-var y: float;
-var name: string = "Brody";
+int x = 10;
+float y;
+
+string name = "Flare";
 ```
 
 ## Assignment
@@ -26,7 +27,8 @@ y = 3.14;
 - `bool` — Boolean (true/false)
 - `any` — Dynamic type
 - `function`, `module`, `variant`, `tag` — Advanced types
-
+- `boolean` — True/false values
+- 
 ## Type Inference
 If no type is specified, it may default to `any` (implementation-dependent).
 

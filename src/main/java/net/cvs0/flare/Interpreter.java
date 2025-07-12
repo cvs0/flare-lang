@@ -54,9 +54,6 @@ public class Interpreter implements ASTVisitor<Value> {
     }
 
     public Interpreter() {
-        globals.define("native_print", new Value(null, null));
-        globals.define("native_memoryStats", new Value(null, null));
-        globals.define("native_vmInfo", new Value(null, null));
         context.set(globals);
         registerStandardLibraries();
     }
@@ -84,10 +81,10 @@ public class Interpreter implements ASTVisitor<Value> {
         }
     }
 
-    private void execute(Statement stmt) {
-        if (stmt == null) return;
+    private Value execute(Statement stmt) {
+        if (stmt == null) return null;
         try {
-            if (stmt instanceof net.cvs0.flare.ast.decl.FunctionDeclaration) {
+            if (stmt instanceof FunctionDeclaration) {
                 FunctionDeclaration func = (FunctionDeclaration) stmt;
                 callStack.push("Function: " + func.name.lexeme);
             } else if (stmt instanceof FunctionCall) {
@@ -96,6 +93,12 @@ public class Interpreter implements ASTVisitor<Value> {
             }
 
             debugger.checkBreakpoint(stmt, callStack);
+
+            if (stmt instanceof ReturnStatement) {
+                ReturnStatement returnStmt = (ReturnStatement) stmt;
+                return evaluate(returnStmt.value);
+            }
+
             stmt.accept(this);
         } catch (RuntimeException e) {
             printStackTrace(e);
@@ -103,20 +106,43 @@ public class Interpreter implements ASTVisitor<Value> {
         } finally {
             if (!callStack.isEmpty()) callStack.pop();
         }
+        return null;
     }
 
     private void printStackTrace(RuntimeException e) {
-        System.err.println("Error: " + e.getMessage());
+        System.err.println("Error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
         System.err.println("Stack trace:");
-        for (String frame : callStack) {
-            System.err.println("  at " + frame);
+        if (callStack.isEmpty()) {
+            System.err.println("  (empty)");
+        } else {
+            for (String frame : callStack) {
+                System.err.println("  at " + frame);
+            }
         }
     }
 
     @Override
     public Value visitVariableDeclaration(VariableDeclaration node) {
-        InterpreterUtil.defineVariable(context.get(), node.name, node.typeToken,
-            node.initializer != null ? evaluate(node.initializer) : null);
+        Value initValue = node.initializer != null
+                ? evaluate(node.initializer)
+                : defaultValue(node.typeToken);
+
+        Type expectedType = InterpreterUtil.tokenTypeToType(node.typeToken);
+
+        if (initValue != null && initValue.type != expectedType) {
+            throw new RuntimeException(
+                    "Type error: cannot assign " + initValue.type +
+                            " to variable '" + node.name.lexeme +
+                            "' of type " + expectedType
+            );
+        }
+
+        InterpreterUtil.defineVariable(
+                context.get(),
+                node.name,
+                node.typeToken,
+                initValue
+        );
         return null;
     }
 
@@ -176,6 +202,7 @@ public class Interpreter implements ASTVisitor<Value> {
     @Override
     public Value visitFunctionCall(FunctionCall node) {
         Value calleeValue = evaluate(node.callee);
+
         if (calleeValue.type == Type.FUNCTION && calleeValue.data instanceof java.util.function.Function) {
             java.util.function.Function<List<Value>, Value> func = (java.util.function.Function<List<Value>, Value>) calleeValue.data;
             List<Value> argValues = new java.util.ArrayList<>();
@@ -184,10 +211,13 @@ public class Interpreter implements ASTVisitor<Value> {
             }
             return func.apply(argValues);
         }
+
         if (calleeValue.type != Type.FUNCTION) {
             throw new RuntimeException("Attempted to call a non-function");
         }
+
         FunctionDeclaration function = (FunctionDeclaration) calleeValue.data;
+
         if (function.tags != null) {
             for (Tag tag : function.tags) {
                 if ("deprecated".equals(tag.name)) {
@@ -196,27 +226,32 @@ public class Interpreter implements ASTVisitor<Value> {
                 }
             }
         }
+
         if (function.parameters.size() != node.arguments.size()) {
             throw new RuntimeException("Function '" + function.name.lexeme + "' expects " + function.parameters.size() + " arguments, got " + node.arguments.size());
         }
+
         ExecutionContext previous = context.get();
         context.set(new ExecutionContext(previous));
+
         try {
             for (int i = 0; i < function.parameters.size(); i++) {
                 FunctionDeclaration.Parameter param = function.parameters.get(i);
                 Value argValue = evaluate(node.arguments.get(i));
                 context.get().define(param.name.lexeme, argValue);
             }
-            try {
-                for (Statement stmt : function.body) {
-                    execute(stmt);
+
+            for (Statement stmt : function.body) {
+                Value result = execute(stmt);
+                if (result != null) {
+                    return result;
                 }
-            } catch (ReturnException ret) {
-                return ret.value;
             }
+
         } finally {
             context.set(previous);
         }
+
         return null;
     }
 
@@ -347,9 +382,6 @@ public class Interpreter implements ASTVisitor<Value> {
 
     private ExecutionContext createModuleContext() {
         ExecutionContext ctx = new ExecutionContext();
-        ctx.define("native_print", new Value(null, null));
-        ctx.define("native_memoryStats", new Value(null, null));
-        ctx.define("native_vmInfo", new Value(null, null));
         return ctx;
     }
 
@@ -514,6 +546,21 @@ public class Interpreter implements ASTVisitor<Value> {
         return null;
     }
 
+    @Override
+    public Value visitWhileStatement(WhileStatement node) {
+        while (true) {
+            Value condition = evaluate(node.getCondition());
+
+            if (!InterpreterUtil.isTruthy(condition)) {
+                break;
+            }
+
+            execute(node.getBody());
+        }
+        return null;
+    }
+
+
     private Value evaluate(Expression expr) {
         return expr.accept(this);
     }
@@ -560,6 +607,17 @@ public class Interpreter implements ASTVisitor<Value> {
                 return new Value(Type.BOOL, !isTruthy(right));
             default:
                 throw new RuntimeException("Unknown unary operator: " + node.operator.type);
+        }
+    }
+
+    @Override
+    public Value visitTernary(Ternary node) {
+        Value conditionValue = evaluate(node.condition);
+
+        if (InterpreterUtil.isTruthy(conditionValue)) {
+            return evaluate(node.trueExpr);
+        } else {
+            return evaluate(node.falseExpr);
         }
     }
 

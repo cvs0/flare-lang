@@ -67,8 +67,10 @@ See [docs/builtins.md](docs/builtins.md) for full details.
 ## Example Program
 
 ```lang
+import std;
+
 func main() {
-    print("Hello, world!");
+    std.print("Hello, world!");
 }
 ```
 

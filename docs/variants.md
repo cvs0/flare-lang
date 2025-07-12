@@ -18,17 +18,19 @@ variant Color { RED, GREEN, BLUE }
 Declare a variable of a variant type and assign a tag:
 
 ```lang
-var c: Color = Color.RED;
+Color c = Color.RED;
 ```
 
 ## Pattern Matching (with switch)
 You can use `switch` to match on variant tags:
 
 ```lang
+import std;
+
 switch (c) {
-    case Color.RED: print("Red!"); break;
-    case Color.GREEN: print("Green!"); break;
-    case Color.BLUE: print("Blue!"); break;
+    case Color.RED: std.print("Red!"); break;
+    case Color.GREEN: std.print("Green!"); break;
+    case Color.BLUE: std.print("Blue!"); break;
 }
 ```
 

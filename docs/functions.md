@@ -6,12 +6,14 @@ This document explains function declaration, parameters, return values, and call
 Define a function with `func`:
 
 ```lang
+import std;
+
 func add(a: int, b: int): int {
     return a + b;
 }
 
 func greet(name: string) {
-    print("Hello, " + name);
+    std.print("Hello, " + name);
 }
 ```
 
@@ -30,7 +32,7 @@ greet("Brody");
 Functions can call themselves:
 
 ```lang
-func factorial(n: int): int {
+func factorial(n: int) {
     if (n <= 1) return 1;
     return n * factorial(n - 1);
 }
