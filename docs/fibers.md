@@ -19,6 +19,8 @@ fiber worker {
 
 ## Example: Multiple Fibers
 ```lang
+import std;
+
 fiber alpha {
     printNumbers("Alpha");
 }
@@ -29,7 +31,7 @@ fiber beta {
 
 func printNumbers(name: string) {
     for (int i = 1; i <= 5; i += 1) {
-        print(name + ": " + i);
+        std.print(name + ": " + i);
     }
 }
 ```

@@ -54,9 +54,6 @@ public class Interpreter implements ASTVisitor<Value> {
     }
 
     public Interpreter() {
-        globals.define("native_print", new Value(null, null));
-        globals.define("native_memoryStats", new Value(null, null));
-        globals.define("native_vmInfo", new Value(null, null));
         context.set(globals);
         registerStandardLibraries();
     }
@@ -347,9 +344,6 @@ public class Interpreter implements ASTVisitor<Value> {
 
     private ExecutionContext createModuleContext() {
         ExecutionContext ctx = new ExecutionContext();
-        ctx.define("native_print", new Value(null, null));
-        ctx.define("native_memoryStats", new Value(null, null));
-        ctx.define("native_vmInfo", new Value(null, null));
         return ctx;
     }
 
