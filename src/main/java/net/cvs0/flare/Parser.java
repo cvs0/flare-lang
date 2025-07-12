@@ -112,6 +112,14 @@ public class Parser {
         return alias != null ? new ImportStatement(moduleName, alias) : new ImportStatement(moduleName);
     }
 
+    private Statement whileStatement() {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.");
+        Expression condition = expression();
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after while condition.");
+        Statement body = statement();
+        return new WhileStatement(condition, body);
+    }
+
     private Statement functionDeclaration(List<Tag> tags) {
         Token name = consume(TokenType.IDENTIFIER, "Expect function name.");
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name.");
@@ -159,6 +167,7 @@ public class Parser {
         if (ctx.match(TokenType.LEFT_BRACE)) return block();
         if (ctx.match(TokenType.REGION)) return regionBlock();
         if (ctx.match(TokenType.SWITCH)) return switchStatement();
+        if (ctx.match(TokenType.WHILE)) return whileStatement();
         return assignmentOrExpressionStatement();
     }
 

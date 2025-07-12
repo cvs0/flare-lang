@@ -546,6 +546,21 @@ public class Interpreter implements ASTVisitor<Value> {
         return null;
     }
 
+    @Override
+    public Value visitWhileStatement(WhileStatement node) {
+        while (true) {
+            Value condition = evaluate(node.getCondition());
+
+            if (!InterpreterUtil.isTruthy(condition)) {
+                break;
+            }
+
+            execute(node.getBody());
+        }
+        return null;
+    }
+
+
     private Value evaluate(Expression expr) {
         return expr.accept(this);
     }

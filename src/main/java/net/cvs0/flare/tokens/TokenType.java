@@ -26,6 +26,7 @@ public enum TokenType {
     VAR,
     PLUS_ASSIGN,
     AS,
+    WHILE,
 
     EOF
 }

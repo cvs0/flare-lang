@@ -18,6 +18,7 @@ public interface ASTVisitor<R> {
     R visitReturnStatement(ReturnStatement node);
     R visitSwitchStatement(SwitchStatement node);
     R visitForStatement(ForStatement node);
+    R visitWhileStatement(WhileStatement node);
     R visitBinary(Binary node);
     R visitLiteral(Literal node);
     R visitVariableReference(VariableReference node);

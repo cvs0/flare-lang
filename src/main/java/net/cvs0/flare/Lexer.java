@@ -41,6 +41,7 @@ public class Lexer {
         keywords.put("for", TokenType.FOR);
         keywords.put("var", TokenType.VAR);
         keywords.put("as", TokenType.AS);
+        keywords.put("while", TokenType.WHILE);
     }
 
     public Lexer(String source) {
