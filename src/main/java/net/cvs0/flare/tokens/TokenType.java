@@ -1,0 +1,30 @@
+package net.cvs0.flare.tokens;
+
+/**
+ * TokenType defines all possible types of tokens in the language.
+ * Easily extensible for new keywords or operators.
+ */
+public enum TokenType {
+    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+    SEMICOLON, COMMA, DOT, ASSIGN, PLUS, MINUS, STAR, SLASH, COLON,
+
+    EQUAL, EQUAL_EQUAL, BANG, BANG_EQUAL,
+    GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
+    AND_AND, OR_OR,
+
+    IDENTIFIER, NUMBER, STRING,
+
+    IF, ELSE, INT, FLOAT, STRING_TYPE, BOOLEAN, TRUE, FALSE, FUNC, IMPORT, RETURN, REGION,
+    TAG,
+    VARIANT,
+    SWITCH,
+    TYPEOF,
+    CASE,
+    FIBER,
+    FOR,
+    VAR,
+    PLUS_ASSIGN,
+    AS,
+
+    EOF
+}
