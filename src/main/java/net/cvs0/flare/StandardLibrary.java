@@ -57,7 +57,7 @@ public class StandardLibrary {
         strLib.put("lower", StandardLibrary::std_lower);
         strLib.put("contains", StandardLibrary::std_contains);
         strLib.put("substring", StandardLibrary::std_substring);
-        libraries.put("string", strLib);
+        libraries.put("str", strLib);
     }
 
     private static void registerFileLib() {

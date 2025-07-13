@@ -42,6 +42,7 @@ public class Lexer {
         keywords.put("var", TokenType.VAR);
         keywords.put("as", TokenType.AS);
         keywords.put("while", TokenType.WHILE);
+        keywords.put("null", TokenType.NULL);
     }
 
     public Lexer(String source) {
@@ -79,7 +80,13 @@ public class Lexer {
                 break;
             case '-': addToken(TokenType.MINUS); break;
             case '*': addToken(TokenType.STAR); break;
-            case '?': addToken(TokenType.QUESTION_MARK); break;
+            case '?':
+                if (match('?')) {
+                    addToken(TokenType.QUESTION_QUESTION);
+                } else {
+                    addToken(TokenType.QUESTION_MARK);
+                }
+                break;
             case '/':
                 if (ctx.peek() == '/') {
                     while (ctx.peek() != '\n' && !ctx.isAtEnd()) ctx.advance();
@@ -148,8 +155,13 @@ public class Lexer {
     private void identifier() {
         while (isAlphaNumeric(ctx.peek())) ctx.advance();
         String text = ctx.source.substring(ctx.start, ctx.current);
+
         TokenType type = keywords.getOrDefault(text, TokenType.IDENTIFIER);
         addToken(type);
+        
+        if (match('?')) {
+            addToken(TokenType.QUESTION_MARK);
+        }
     }
 
     private void number() {

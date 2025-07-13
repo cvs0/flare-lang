@@ -24,14 +24,23 @@ public class InterpreterUtil {
     }
 
     public static Value defaultValue(Token typeToken) {
+        // Handle nullable types (ending with ?)
+        if (typeToken.type == TokenType.IDENTIFIER && typeToken.lexeme.endsWith("?")) {
+            return new Value(tokenTypeToType(typeToken), null);
+        }
+        
         switch (typeToken.type) {
             case INT: return new Value(Type.INT, 0);
             case FLOAT: return new Value(Type.FLOAT, 0.0);
             case STRING_TYPE: return new Value(Type.STRING, "");
             case BOOLEAN: return new Value(Type.BOOL, false);
+            case VARIANT: return new Value(Type.VARIANT, null);
+            case TAG: return new Value(Type.TAG, null);
+            case NULL: return new Value(Type.NULL, null);
             default: throw new RuntimeException("Unknown type: " + typeToken.lexeme);
         }
     }
+
 
     public static boolean isTruthy(Value value) {
         if (value.type == Type.BOOL) return (boolean)value.data;
@@ -42,6 +51,21 @@ public class InterpreterUtil {
     }
 
     public static Type tokenTypeToType(Token typeToken) {
+        // Handle nullable types (ending with ?)
+        if (typeToken.type == TokenType.IDENTIFIER && typeToken.lexeme.endsWith("?")) {
+            String baseType = typeToken.lexeme.substring(0, typeToken.lexeme.length() - 1);
+            switch (baseType) {
+                case "int":     return Type.INT;
+                case "float":   return Type.FLOAT;
+                case "string":  return Type.STRING;
+                case "boolean": return Type.BOOL;
+                case "any":     return Type.ANY;
+                default:
+                    throw new RuntimeException("Unknown nullable type: " + baseType);
+            }
+        }
+        
+        // Handle regular types
         switch (typeToken.type) {
             case INT:          return Type.INT;
             case FLOAT:        return Type.FLOAT;

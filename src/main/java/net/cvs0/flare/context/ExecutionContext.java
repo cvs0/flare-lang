@@ -45,6 +45,12 @@ public class ExecutionContext {
         }
     }
 
+    public Map<String, Value> getAll() {
+        Map<String, Value> all = (parent != null) ? parent.getAll() : new HashMap<>();
+        all.putAll(this.variables);
+        return all;
+    }
+
     public boolean contains(String name) {
         return variables.containsKey(name);
     }

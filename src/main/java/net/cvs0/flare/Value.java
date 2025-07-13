@@ -14,6 +14,8 @@ public class Value {
         this.data = data;
     }
 
+    public static final Value NULL = new Value(Type.NULL, null);
+
     @Override
     public String toString() {
         return String.valueOf(data);
@@ -32,5 +34,15 @@ public class Value {
             return new Value(Type.STRING, this.data.toString() + other.data.toString());
         }
         throw new RuntimeException("Unsupported types for plus: " + this.type + ", " + other.type);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) return true;
+        if (!(o instanceof Value)) return false;
+        Value other = (Value) o;
+        if (this.type != other.type) return false;
+        return this.data == null ? other.data == null : this.data.equals(other.data);
     }
 }

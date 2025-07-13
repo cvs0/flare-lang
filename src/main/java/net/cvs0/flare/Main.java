@@ -21,6 +21,52 @@ public class Main {
             System.out.print("> ");
             String line = scanner.nextLine();
             if (line == null || line.trim().equalsIgnoreCase("exit")) break;
+
+            // REPL built-in commands
+            String cmd = line.trim().toLowerCase();
+            switch (cmd) {
+                case "help":
+                    System.out.println("Available commands:");
+                    System.out.println("  file <path>    Run a file");
+                    System.out.println("  reset          Reset interpreter state");
+                    System.out.println("  clear          Clear console");
+                    System.out.println("  context        List global variables");
+                    System.out.println("  functions      List defined functions");
+                    System.out.println("  modules        List imported modules");
+                    System.out.println("  dump           Dump full interpreter context");
+                    System.out.println("  version        Show language version");
+                    System.out.println("  exit           Exit REPL");
+                    continue;
+                case "reset":
+                    interpreter = new Interpreter();
+                    System.out.println("Interpreter reset.");
+                    continue;
+                case "clear":
+                    System.out.print("\033[H\033[2J");
+                    System.out.flush();
+                    continue;
+                case "context":
+                    System.out.println("Global context: " + interpreter.globals.getAll().keySet());
+                    continue;
+                case "functions":
+                    interpreter.globals.getAll().forEach((k, v) -> {
+                        if (v.type == Type.FUNCTION) System.out.println("- " + k);
+                    });
+                    continue;
+                case "modules":
+                    interpreter.globals.getAll().forEach((k, v) -> {
+                        if (v.type == Type.MODULE) System.out.println("- " + k);
+                    });
+                    continue;
+                case "dump":
+                    interpreter.globals.getAll().forEach((k, v) ->
+                            System.out.println(k + ": " + v.type + " = " + v.data));
+                    continue;
+                case "version":
+                    System.out.println("Flare Language v1.1.0");
+                    continue;
+            }
+
             if (line.trim().startsWith("file ")) {
                 String filePath = line.trim().substring(5).trim();
                 try {
@@ -33,8 +79,8 @@ public class Main {
                     interpreter.interpret(statements);
 
                     Value mainFunc = null;
-                    if (interpreter.globals.contains("main")) {
-                        mainFunc = interpreter.globals.get("main");
+                    if (interpreter.globals.contains("main()")) {
+                        mainFunc = interpreter.globals.get("main()");
                     }
                     if (mainFunc != null && mainFunc.type == Type.FUNCTION) {
                         try {
@@ -53,6 +99,7 @@ public class Main {
                 }
                 continue;
             }
+
             try {
                 Lexer lexer = new Lexer(line);
                 List<Token> tokens = lexer.tokenize();

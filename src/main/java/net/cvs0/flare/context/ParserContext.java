@@ -38,6 +38,16 @@ public class ParserContext {
         return peek().type == type;
     }
 
+    public boolean check(TokenType... types) {
+        if (isAtEnd()) return false;
+        for (TokenType type : types) {
+            if (peek().type == type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean match(TokenType... types) {
         for (TokenType type : types) {
             if (check(type)) {
