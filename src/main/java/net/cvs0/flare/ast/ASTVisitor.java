@@ -25,6 +25,7 @@ public interface ASTVisitor<R> {
     R visitDotAccess(DotAccess node);
     R visitUnary(Unary node);
     R visitTernary(Ternary node);
+    R visitNullCoalescing(NullCoalescing node);
     R visitFunctionDeclaration(FunctionDeclaration node);
     R visitFunctionCall(FunctionCall node);
     R visitImportStatement(ImportStatement node);

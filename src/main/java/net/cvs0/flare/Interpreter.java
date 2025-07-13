@@ -129,7 +129,12 @@ public class Interpreter implements ASTVisitor<Value> {
 
         Type expectedType = InterpreterUtil.tokenTypeToType(node.typeToken);
 
-        if (initValue != null && initValue.type != expectedType) {
+        // Allow null assignment to nullable types (types ending with ?)
+        if (initValue != null && initValue.type == Type.NULL && node.typeToken.lexeme.endsWith("?")) {
+            // This is valid - null can be assigned to nullable types
+        }
+        // Otherwise perform normal type checking
+        else if (initValue != null && initValue.type != expectedType) {
             throw new RuntimeException(
                     "Type error: cannot assign " + initValue.type +
                             " to variable '" + node.name.lexeme +
@@ -148,12 +153,19 @@ public class Interpreter implements ASTVisitor<Value> {
 
     @Override
     public Value visitAssignment(Assignment node) {
+        Value value = evaluate(node.value);
+        Value currentValue = context.get().get(node.name.lexeme);
+        
+        // For now, we'll allow NULL assignments to any variable
+        // In a more robust implementation, you would track variable types
+        // and only allow NULL for nullable types
+        
         switch (node.operator.type) {
             case ASSIGN:
-                context.get().assign(node.name.lexeme, evaluate(node.value));
+                context.get().assign(node.name.lexeme, value);
                 break;
             case PLUS_ASSIGN:
-                context.get().assign(node.name.lexeme, context.get().get(node.name.lexeme).plus(evaluate(node.value)));
+                context.get().assign(node.name.lexeme, currentValue.plus(value));
                 break;
             default:
                 throw new RuntimeException("Unsupported assignment operator: " + node.operator.type);
@@ -259,6 +271,11 @@ public class Interpreter implements ASTVisitor<Value> {
     public Value visitBinary(Binary node) {
         Value left = evaluate(node.left);
         Value right = evaluate(node.right);
+
+        if (left == null || right == null) {
+            return new Value(Type.NULL, null);
+        }
+
         switch (node.operator.type) {
             case PLUS:
                 if (left.type == Type.INT && right.type == Type.INT)
@@ -295,9 +312,9 @@ public class Interpreter implements ASTVisitor<Value> {
             case LESS_EQUAL:
                 return new Value(Type.BOOL, toFloat(left) <= toFloat(right));
             case EQUAL_EQUAL:
-                return new Value(Type.BOOL, left.data.equals(right.data));
+                return new Value(Type.BOOL, left.data == null ? right.data == null : left.data.equals(right.data));
             case BANG_EQUAL:
-                return new Value(Type.BOOL, !left.data.equals(right.data));
+                return new Value(Type.BOOL, left.data == null ? right.data != null : !left.data.equals(right.data));
             case TYPEOF:
                 String typeName = null;
                 if (node.right instanceof Literal) {
@@ -377,6 +394,8 @@ public class Interpreter implements ASTVisitor<Value> {
         }
         if (node.token.type == TokenType.STRING)
             return new Value(Type.STRING, node.value);
+        if (node.token.type == TokenType.NULL)
+            return Value.NULL;
         throw new RuntimeException("Unknown literal type");
     }
 
@@ -560,6 +579,14 @@ public class Interpreter implements ASTVisitor<Value> {
         return null;
     }
 
+    @Override
+    public Value visitNullCoalescing(NullCoalescing node) {
+        Value leftValue = evaluate(node.left);
+        if (leftValue == Value.NULL) {
+            return evaluate(node.right);
+        }
+        return leftValue;
+    }
 
     private Value evaluate(Expression expr) {
         return expr.accept(this);
