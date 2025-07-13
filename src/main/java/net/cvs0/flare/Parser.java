@@ -88,32 +88,35 @@ public class Parser
         }
     }
 
-    private Statement declaration()
-    {
+    private Statement declaration() {
         List<Tag> tags = collectTags();
-        if (ctx.match(TokenType.IMPORT))
-        {
+
+        if (ctx.match(TokenType.IMPORT)) {
             return importStatement();
         }
-        if (ctx.match(TokenType.FUNC))
-        {
+
+        if (ctx.match(TokenType.FUNC)) {
             return functionDeclaration(tags);
         }
-        if (ctx.match(TokenType.INT, TokenType.FLOAT, TokenType.STRING_TYPE, TokenType.BOOLEAN, TokenType.VAR))
-        {
-            Token typeToken = ctx.previous();
-            if (ctx.match(TokenType.QUESTION_MARK))
-            {
+
+        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN)) {
+            Token typeToken = ctx.advance();
+
+            // Handle nullable types (e.g., string?)
+            if (ctx.match(TokenType.QUESTION_MARK)) {
                 typeToken = new Token(TokenType.IDENTIFIER, typeToken.lexeme + "?", typeToken.literal, typeToken.line, typeToken.column);
             }
+
             return variableDeclaration(tags, typeToken);
         }
-        if (ctx.match(TokenType.VARIANT))
-        {
+
+        if (ctx.match(TokenType.VARIANT)) {
             return variantDeclaration();
         }
+
         return statement();
     }
+
 
     private Statement importStatement()
     {
@@ -166,7 +169,14 @@ public class Parser
                 Token typeToken = null;
                 if (ctx.match(TokenType.COLON))
                 {
-                    Token baseType = consume(TokenType.IDENTIFIER, "Expect parameter type.");
+                    Token baseType = ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN)
+                            ? ctx.previous()
+                            : null;
+
+                    if (baseType == null) {
+                        throw error(ctx.peek(), "Expect parameter type.");
+                    }
+
                     if (ctx.match(TokenType.QUESTION_MARK))
                     {
                         typeToken = new Token(TokenType.IDENTIFIER, baseType.lexeme + "?", baseType.literal, baseType.line, baseType.column);

@@ -1,6 +1,14 @@
 import std;
 import str;
 
+func hey() {
+    std.print("Hey there!");
+}
+
+func hey(name: string) {
+    std.print("Hey " + name + "!");
+}
+
 func main() {
     string? name = null;
     if (name == null) {
@@ -27,4 +35,7 @@ func main() {
         std.print(i);
         i = i + 1;
     }
+
+    hey();
+    hey(name);
 }

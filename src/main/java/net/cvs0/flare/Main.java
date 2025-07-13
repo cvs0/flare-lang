@@ -79,8 +79,8 @@ public class Main {
                     interpreter.interpret(statements);
 
                     Value mainFunc = null;
-                    if (interpreter.globals.contains("main")) {
-                        mainFunc = interpreter.globals.get("main");
+                    if (interpreter.globals.contains("main()")) {
+                        mainFunc = interpreter.globals.get("main()");
                     }
                     if (mainFunc != null && mainFunc.type == Type.FUNCTION) {
                         try {

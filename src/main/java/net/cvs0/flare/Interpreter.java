@@ -14,6 +14,7 @@ import net.cvs0.flare.tokens.TokenType;
 import net.cvs0.flare.tokens.Type;
 import net.cvs0.flare.utils.InterpreterUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.nio.file.Files;
@@ -196,7 +197,106 @@ public class Interpreter implements ASTVisitor<Value> {
 
     @Override
     public Value visitFunctionDeclaration(FunctionDeclaration node) {
-        context.get().define(node.name.lexeme, new Value(Type.FUNCTION, node));
+        String signature = generateFunctionSignature(node);
+        
+        // Check if a function with the exact same signature already exists
+        // Allow redefinition in global context (for REPL file reloading)
+        if (context.get().contains(signature) && context.get() != globals) {
+            throw new RuntimeException("Function '" + node.name.lexeme + "' with signature '" + signature + "' is already defined.");
+        }
+        
+        context.get().define(signature, new Value(Type.FUNCTION, node));
+        return null;
+    }
+    
+    private String generateFunctionSignature(FunctionDeclaration node) {
+        StringBuilder signature = new StringBuilder(node.name.lexeme);
+        signature.append("(");
+        
+        for (int i = 0; i < node.parameters.size(); i++) {
+            FunctionDeclaration.Parameter param = node.parameters.get(i);
+            if (param.typeToken != null) {
+                signature.append(param.typeToken.lexeme);
+            } else {
+                signature.append("any");
+            }
+            if (i < node.parameters.size() - 1) {
+                signature.append(",");
+            }
+        }
+        
+        signature.append(")");
+        return signature.toString();
+    }
+    
+    private String generateCallSignature(String functionName, List<String> argTypes) {
+        StringBuilder signature = new StringBuilder(functionName);
+        signature.append("(");
+        
+        for (int i = 0; i < argTypes.size(); i++) {
+            signature.append(argTypes.get(i));
+            if (i < argTypes.size() - 1) {
+                signature.append(",");
+            }
+        }
+        
+        signature.append(")");
+        return signature.toString();
+    }
+    
+    private String getValueTypeName(Value value) {
+        switch (value.type) {
+            case INT: return "int";
+            case FLOAT: return "float";
+            case STRING: return "string";
+            case BOOL: return "bool";
+            case NULL: return "any"; // null can match any nullable type
+            default: return "any";
+        }
+    }
+    
+    private Value executeUserFunction(FunctionDeclaration function, List<Expression> arguments) {
+        List<Value> argValues = new ArrayList<>();
+        for (Expression argExpr : arguments) {
+            argValues.add(evaluate(argExpr));
+        }
+        return executeUserFunctionWithValues(function, argValues);
+    }
+    
+    private Value executeUserFunctionWithValues(FunctionDeclaration function, List<Value> argValues) {
+        if (function.tags != null) {
+            for (Tag tag : function.tags) {
+                if ("deprecated".equals(tag.name)) {
+                    String msg = (tag.arguments != null && !tag.arguments.isEmpty()) ? String.valueOf(tag.arguments.get(0).data) : "";
+                    System.out.println("Warning: function '" + function.name.lexeme + "' is deprecated." + (msg.isEmpty() ? "" : " " + msg));
+                }
+            }
+        }
+
+        if (function.parameters.size() != argValues.size()) {
+            throw new RuntimeException("Function '" + function.name.lexeme + "' expects " + function.parameters.size() + " arguments, got " + argValues.size());
+        }
+
+        ExecutionContext previous = context.get();
+        context.set(new ExecutionContext(previous));
+
+        try {
+            for (int i = 0; i < function.parameters.size(); i++) {
+                FunctionDeclaration.Parameter param = function.parameters.get(i);
+                Value argValue = argValues.get(i);
+                context.get().define(param.name.lexeme, argValue);
+            }
+
+            for (Statement stmt : function.body) {
+                execute(stmt);
+            }
+
+        } catch (ReturnException returnEx) {
+            return returnEx.value;
+        } finally {
+            context.set(previous);
+        }
+
         return null;
     }
 
@@ -213,58 +313,61 @@ public class Interpreter implements ASTVisitor<Value> {
 
     @Override
     public Value visitFunctionCall(FunctionCall node) {
-        Value calleeValue = evaluate(node.callee);
-
-        if (calleeValue.type == Type.FUNCTION && calleeValue.data instanceof java.util.function.Function) {
-            java.util.function.Function<List<Value>, Value> func = (java.util.function.Function<List<Value>, Value>) calleeValue.data;
-            List<Value> argValues = new java.util.ArrayList<>();
+        // Check if this is a simple function call (VariableReference)
+        if (node.callee instanceof VariableReference) {
+            VariableReference var = (VariableReference) node.callee;
+            String functionName = var.name.lexeme;
+            
+            // Evaluate arguments to determine their types
+            List<Value> argValues = new ArrayList<>();
+            List<String> argTypes = new ArrayList<>();
             for (Expression argExpr : node.arguments) {
-                argValues.add(evaluate(argExpr));
+                Value argValue = evaluate(argExpr);
+                argValues.add(argValue);
+                argTypes.add(getValueTypeName(argValue));
             }
-            return func.apply(argValues);
-        }
-
-        if (calleeValue.type != Type.FUNCTION) {
-            throw new RuntimeException("Attempted to call a non-function");
-        }
-
-        FunctionDeclaration function = (FunctionDeclaration) calleeValue.data;
-
-        if (function.tags != null) {
-            for (Tag tag : function.tags) {
-                if ("deprecated".equals(tag.name)) {
-                    String msg = (tag.arguments != null && !tag.arguments.isEmpty()) ? String.valueOf(tag.arguments.get(0).data) : "";
-                    System.out.println("Warning: function '" + function.name.lexeme + "' is deprecated." + (msg.isEmpty() ? "" : " " + msg));
-                }
+            
+            // Generate signature for function lookup
+            String signature = generateCallSignature(functionName, argTypes);
+            
+            // Try to find function with exact signature
+            Value functionValue = null;
+            if (context.get().contains(signature)) {
+                functionValue = context.get().get(signature);
+            } else if (globals.contains(signature)) {
+                functionValue = globals.get(signature);
             }
+            
+            if (functionValue != null && functionValue.type == Type.FUNCTION && functionValue.data instanceof FunctionDeclaration) {
+                FunctionDeclaration function = (FunctionDeclaration) functionValue.data;
+                return executeUserFunctionWithValues(function, argValues);
+            }
+            
+            throw new RuntimeException("No matching function found for '" + functionName + "' with signature '" + signature + "'");
         }
-
-        if (function.parameters.size() != node.arguments.size()) {
-            throw new RuntimeException("Function '" + function.name.lexeme + "' expects " + function.parameters.size() + " arguments, got " + node.arguments.size());
-        }
-
-        ExecutionContext previous = context.get();
-        context.set(new ExecutionContext(previous));
-
+        
+        // For other types of callees (like module functions), try to evaluate normally
         try {
-            for (int i = 0; i < function.parameters.size(); i++) {
-                FunctionDeclaration.Parameter param = function.parameters.get(i);
-                Value argValue = evaluate(node.arguments.get(i));
-                context.get().define(param.name.lexeme, argValue);
-            }
+            Value calleeValue = evaluate(node.callee);
 
-            for (Statement stmt : function.body) {
-                Value result = execute(stmt);
-                if (result != null) {
-                    return result;
+            if (calleeValue.type == Type.FUNCTION && calleeValue.data instanceof java.util.function.Function) {
+                java.util.function.Function<List<Value>, Value> func = (java.util.function.Function<List<Value>, Value>) calleeValue.data;
+                List<Value> argValues = new java.util.ArrayList<>();
+                for (Expression argExpr : node.arguments) {
+                    argValues.add(evaluate(argExpr));
                 }
+                return func.apply(argValues);
             }
 
-        } finally {
-            context.set(previous);
-        }
+            if (calleeValue.type == Type.FUNCTION && calleeValue.data instanceof FunctionDeclaration) {
+                FunctionDeclaration function = (FunctionDeclaration) calleeValue.data;
+                return executeUserFunction(function, node.arguments);
+            }
 
-        return null;
+            throw new RuntimeException("Attempted to call a non-function");
+        } catch (RuntimeException e) {
+            throw e;
+        }
     }
 
     @Override
