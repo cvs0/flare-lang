@@ -5,6 +5,7 @@ import net.cvs0.flare.tokens.Token;
 import net.cvs0.flare.tokens.Type;
 import net.cvs0.flare.Value;
 import net.cvs0.flare.context.ExecutionContext;
+import java.util.ArrayList;
 
 public class InterpreterUtil {
     private InterpreterUtil() {}
@@ -34,6 +35,7 @@ public class InterpreterUtil {
             case FLOAT: return new Value(Type.FLOAT, 0.0);
             case STRING_TYPE: return new Value(Type.STRING, "");
             case BOOLEAN: return new Value(Type.BOOL, false);
+            case LIST_TYPE: return new Value(Type.LIST, new ArrayList<>());
             case VARIANT: return new Value(Type.VARIANT, null);
             case TAG: return new Value(Type.TAG, null);
             case NULL: return new Value(Type.NULL, null);
@@ -59,6 +61,7 @@ public class InterpreterUtil {
                 case "float":   return Type.FLOAT;
                 case "string":  return Type.STRING;
                 case "boolean": return Type.BOOL;
+                case "list":    return Type.LIST;
                 case "any":     return Type.ANY;
                 default:
                     throw new RuntimeException("Unknown nullable type: " + baseType);
@@ -71,6 +74,7 @@ public class InterpreterUtil {
             case FLOAT:        return Type.FLOAT;
             case STRING_TYPE:  return Type.STRING;
             case BOOLEAN:      return Type.BOOL;
+            case LIST_TYPE:    return Type.LIST;
             // allow explicit "any"
             case IDENTIFIER:
                 if ("any".equals(typeToken.lexeme)) return Type.ANY;

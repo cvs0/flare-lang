@@ -1,41 +1,48 @@
 import std;
-import str;
-
-func hey() {
-    std.print("Hey there!");
-}
-
-func hey(name: string) {
-    std.print("Hey " + name + "!");
-}
 
 func main() {
-    string? name = null;
-    if (name == null) {
-        std.print("name is null");
-    }
+    // Basic list literals
+    list numbers = [1, 2, 3, 4, 5];
+    list words = ["hello", "world", "flare"];
 
-    name = "Alice";
+    // Range expressions - creates lists from ranges
+    list range1 = [1..5];        // Creates [1, 2, 3, 4, 5]
+    list range2 = [10..15];      // Creates [10, 11, 12, 13, 14, 15]
+    list range3 = [0..3];        // Creates [0, 1, 2, 3]
 
-    if (name != null) {
-        std.print("name is not null");
-    }
+    // Empty list
+    list empty = [];
 
-    string greeting = name ?? "Guest";
-    std.print("Hello, " + greeting);
+    // List concatenation using +
+    list combined = numbers + range1;
 
-    if (str.length(name) > 0) {
-        std.print("Name length is greater than 0");
-    } else {
-        std.print("Name length is 0");
-    }
+    // Index access
+    int first = numbers[0];       // Gets 1
+    string second = words[1];     // Gets "world"
+    int rangeFirst = range1[2];   // Gets 3
 
-    int i = 0;
-    while (i < 3) {
-        std.print(i);
-        i = i + 1;
-    }
+    // Print the results
+    std.print("Numbers list:");
+    std.print(numbers);
 
-    hey();
-    hey(name);
+    std.print("Words list:");
+    std.print(words);
+
+    std.print("Range 1..5:");
+    std.print(range1);
+
+    std.print("Range 10..15:");
+    std.print(range2);
+
+    std.print("Combined numbers + range1:");
+    std.print(combined);
+
+    std.print("First element of numbers:");
+    std.print(first);
+
+    std.print("Second element of words:");
+    std.print(second);
+
+    std.print("Third element of range1:");
+    std.print(rangeFirst);
 }

@@ -43,6 +43,7 @@ public class Lexer {
         keywords.put("as", TokenType.AS);
         keywords.put("while", TokenType.WHILE);
         keywords.put("null", TokenType.NULL);
+        keywords.put("list", TokenType.LIST_TYPE);
     }
 
     public Lexer(String source) {
@@ -68,9 +69,17 @@ public class Lexer {
             case ')': addToken(TokenType.RIGHT_PAREN); break;
             case '{': addToken(TokenType.LEFT_BRACE); break;
             case '}': addToken(TokenType.RIGHT_BRACE); break;
+            case '[': addToken(TokenType.LEFT_BRACKET); break;
+            case ']': addToken(TokenType.RIGHT_BRACKET); break;
             case ';': addToken(TokenType.SEMICOLON); break;
             case ',': addToken(TokenType.COMMA); break;
-            case '.': addToken(TokenType.DOT); break;
+            case '.':
+                if (match('.')) {
+                    addToken(TokenType.DOT_DOT);
+                } else {
+                    addToken(TokenType.DOT);
+                }
+                break;
             case '+':
                 if (match('=')) {
                     addToken(TokenType.PLUS_ASSIGN);

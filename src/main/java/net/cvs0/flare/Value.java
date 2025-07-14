@@ -1,6 +1,8 @@
 package net.cvs0.flare;
 
 import net.cvs0.flare.tokens.Type;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Represents a runtime value with a type and data.
@@ -18,6 +20,17 @@ public class Value {
 
     @Override
     public String toString() {
+        if (type == Type.LIST) {
+            @SuppressWarnings("unchecked")
+            List<Value> list = (List<Value>) data;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(list.get(i).toString());
+            }
+            sb.append("]");
+            return sb.toString();
+        }
         return String.valueOf(data);
     }
 
@@ -32,6 +45,15 @@ public class Value {
         }
         if (this.type == Type.STRING || other.type == Type.STRING) {
             return new Value(Type.STRING, this.data.toString() + other.data.toString());
+        }
+        if (this.type == Type.LIST && other.type == Type.LIST) {
+            @SuppressWarnings("unchecked")
+            List<Value> leftList = (List<Value>) this.data;
+            @SuppressWarnings("unchecked")
+            List<Value> rightList = (List<Value>) other.data;
+            List<Value> result = new ArrayList<>(leftList);
+            result.addAll(rightList);
+            return new Value(Type.LIST, result);
         }
         throw new RuntimeException("Unsupported types for plus: " + this.type + ", " + other.type);
     }

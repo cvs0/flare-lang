@@ -99,7 +99,7 @@ public class Parser
             return functionDeclaration(tags);
         }
 
-        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN)) {
+        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE)) {
             Token typeToken = ctx.advance();
 
             // Handle nullable types (e.g., string?)
@@ -121,7 +121,7 @@ public class Parser
     private Statement importStatement()
     {
         Token moduleName;
-        if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN))
+        if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE))
         {
             moduleName = ctx.previous();
         }
@@ -169,7 +169,7 @@ public class Parser
                 Token typeToken = null;
                 if (ctx.match(TokenType.COLON))
                 {
-                    Token baseType = ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN)
+                    Token baseType = ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE)
                             ? ctx.previous()
                             : null;
 
@@ -236,7 +236,7 @@ public class Parser
         {
             initializer = null;
         }
-        else if (ctx.match(TokenType.INT, TokenType.FLOAT, TokenType.STRING_TYPE, TokenType.BOOLEAN, TokenType.VAR))
+        else if (ctx.match(TokenType.INT, TokenType.FLOAT, TokenType.STRING_TYPE, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.VAR))
         {
             Token typeToken = ctx.previous();
             if (ctx.match(TokenType.QUESTION_MARK))
@@ -540,7 +540,7 @@ public class Parser
                 else if (ctx.match(TokenType.DOT))
                 {
                     Token name;
-                    if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN))
+                    if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE))
                     {
                         name = ctx.previous();
                     }
@@ -549,6 +549,12 @@ public class Parser
                         throw error(ctx.peek(), "Expect property or method name after '.'");
                     }
                     expr = new DotAccess(expr, name.lexeme);
+                }
+                else if (ctx.match(TokenType.LEFT_BRACKET))
+                {
+                    Expression index = expression();
+                    consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.");
+                    expr = new IndexAccess(expr, index);
                 }
                 else
                 {
@@ -562,6 +568,28 @@ public class Parser
             Expression expr = expression();
             consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
             return expr;
+        }
+        if (ctx.match(TokenType.LEFT_BRACKET))
+        {
+            List<Expression> elements = new ArrayList<>();
+            if (!ctx.check(TokenType.RIGHT_BRACKET))
+            {
+                do
+                {
+                    Expression element = expression();
+                    if (ctx.match(TokenType.DOT_DOT))
+                    {
+                        Expression end = expression();
+                        elements.add(new RangeExpression(element, end));
+                    }
+                    else
+                    {
+                        elements.add(element);
+                    }
+                } while (ctx.match(TokenType.COMMA));
+            }
+            consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.");
+            return new ListLiteral(elements);
         }
         throw error(ctx.peek(), "Expect expression.");
     }

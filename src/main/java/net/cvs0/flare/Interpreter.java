@@ -387,6 +387,15 @@ public class Interpreter implements ASTVisitor<Value> {
                     return new Value(Type.FLOAT, toFloat(left) + toFloat(right));
                 if (left.type == Type.STRING || right.type == Type.STRING)
                     return new Value(Type.STRING, left.data.toString() + right.data.toString());
+                if (left.type == Type.LIST && right.type == Type.LIST) {
+                    @SuppressWarnings("unchecked")
+                    List<Value> leftList = (List<Value>) left.data;
+                    @SuppressWarnings("unchecked")
+                    List<Value> rightList = (List<Value>) right.data;
+                    List<Value> result = new ArrayList<>(leftList);
+                    result.addAll(rightList);
+                    return new Value(Type.LIST, result);
+                }
                 break;
             case MINUS:
                 if (left.type == Type.INT && right.type == Type.INT)
@@ -749,6 +758,67 @@ public class Interpreter implements ASTVisitor<Value> {
         } else {
             return evaluate(node.falseExpr);
         }
+    }
+
+    @Override
+    public Value visitListLiteral(ListLiteral node) {
+        List<Value> elements = new ArrayList<>();
+        for (Expression element : node.elements) {
+            Value evaluated = evaluate(element);
+            // If the element is a range expression result (a list), expand it
+            if (element instanceof RangeExpression && evaluated.type == Type.LIST) {
+                @SuppressWarnings("unchecked")
+                List<Value> rangeElements = (List<Value>) evaluated.data;
+                elements.addAll(rangeElements);
+            } else {
+                elements.add(evaluated);
+            }
+        }
+        return new Value(Type.LIST, elements);
+    }
+
+    @Override
+    public Value visitRangeExpression(RangeExpression node) {
+        Value startValue = evaluate(node.start);
+        Value endValue = evaluate(node.end);
+        
+        if (startValue.type != Type.INT || endValue.type != Type.INT) {
+            throw new RuntimeException("Range expressions require integer bounds");
+        }
+        
+        int start = (int) startValue.data;
+        int end = (int) endValue.data;
+        List<Value> elements = new ArrayList<>();
+        
+        for (int i = start; i <= end; i++) {
+            elements.add(new Value(Type.INT, i));
+        }
+        
+        return new Value(Type.LIST, elements);
+    }
+
+    @Override
+    public Value visitIndexAccess(IndexAccess node) {
+        Value objectValue = evaluate(node.object);
+        Value indexValue = evaluate(node.index);
+        
+        if (objectValue.type != Type.LIST) {
+            throw new RuntimeException("Index access only supported on lists");
+        }
+        
+        if (indexValue.type != Type.INT) {
+            throw new RuntimeException("List index must be an integer");
+        }
+        
+        @SuppressWarnings("unchecked")
+        List<Value> list = (List<Value>) objectValue.data;
+        int index = (int) indexValue.data;
+        
+        if (index < 0 || index >= list.size()) {
+            throw new RuntimeException("List index out of bounds: " + index);
+        }
+        
+        return list.get(index);
     }
 
     public FiberManager getFiberManager() {
