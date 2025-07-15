@@ -145,5 +145,19 @@ public class InterpreterUtil {
             default: throw new RuntimeException("Unknown type name: " + typeName);
         }
     }
-}
 
+    /**
+     * Prints a formatted stack trace for interpreter errors.
+     */
+    public static void printStackTrace(RuntimeException e, java.util.Deque<String> callStack) {
+        System.err.println("Error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+        System.err.println("Stack trace:");
+        if (callStack == null || callStack.isEmpty()) {
+            System.err.println("  (empty)");
+        } else {
+            for (String frame : callStack) {
+                System.err.println("  at " + frame);
+            }
+        }
+    }
+}

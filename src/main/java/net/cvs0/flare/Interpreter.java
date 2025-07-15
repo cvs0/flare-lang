@@ -83,44 +83,46 @@ public class Interpreter implements ASTVisitor<Value> {
         }
     }
 
+    /**
+     * Executes a statement and handles call stack and error reporting.
+     */
     private Value execute(Statement stmt) {
         if (stmt == null) return null;
         try {
-            if (stmt instanceof FunctionDeclaration) {
-                FunctionDeclaration func = (FunctionDeclaration) stmt;
-                callStack.push("Function: " + func.name.lexeme);
-            } else if (stmt instanceof FunctionCall) {
-                FunctionCall call = (FunctionCall) stmt;
-                callStack.push("Call: " + call.callee.toString());
-            }
-
+            pushCallStackFrame(stmt);
             debugger.checkBreakpoint(stmt, callStack);
-
             if (stmt instanceof ReturnStatement) {
                 ReturnStatement returnStmt = (ReturnStatement) stmt;
                 return evaluate(returnStmt.value);
             }
-
             stmt.accept(this);
         } catch (RuntimeException e) {
-            printStackTrace(e);
+            InterpreterUtil.printStackTrace(e, callStack);
             throw e;
         } finally {
-            if (!callStack.isEmpty()) callStack.pop();
+            popCallStackFrame();
         }
         return null;
     }
 
-    private void printStackTrace(RuntimeException e) {
-        System.err.println("Error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
-        System.err.println("Stack trace:");
-        if (callStack.isEmpty()) {
-            System.err.println("  (empty)");
-        } else {
-            for (String frame : callStack) {
-                System.err.println("  at " + frame);
-            }
+    /**
+     * Pushes a frame to the call stack for debugging.
+     */
+    private void pushCallStackFrame(Statement stmt) {
+        if (stmt instanceof FunctionDeclaration) {
+            FunctionDeclaration func = (FunctionDeclaration) stmt;
+            callStack.push("Function: " + func.name.lexeme);
+        } else if (stmt instanceof FunctionCall) {
+            FunctionCall call = (FunctionCall) stmt;
+            callStack.push("Call: " + call.callee.toString());
         }
+    }
+
+    /**
+     * Pops a frame from the call stack.
+     */
+    private void popCallStackFrame() {
+        if (!callStack.isEmpty()) callStack.pop();
     }
 
     @Override
