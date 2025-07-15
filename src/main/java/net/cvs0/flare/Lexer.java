@@ -44,6 +44,8 @@ public class Lexer {
         keywords.put("while", TokenType.WHILE);
         keywords.put("null", TokenType.NULL);
         keywords.put("list", TokenType.LIST_TYPE);
+        keywords.put("buffer", TokenType.BUFFER_TYPE);
+        keywords.put("bytes", TokenType.BYTES_TYPE);
     }
 
     public Lexer(String source) {

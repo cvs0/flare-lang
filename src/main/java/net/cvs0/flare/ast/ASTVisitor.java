@@ -33,6 +33,7 @@ public interface ASTVisitor<R> {
     R visitVariantDeclaration(VariantDeclaration node);
     R visitFiberBlock(FiberBlock node);
     R visitListLiteral(ListLiteral node);
+    R visitBytesLiteral(BytesLiteral node);
     R visitRangeExpression(RangeExpression node);
     R visitIndexAccess(IndexAccess node);
 }

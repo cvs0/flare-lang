@@ -99,14 +99,8 @@ public class Parser
             return functionDeclaration(tags);
         }
 
-        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE)) {
-            Token typeToken = ctx.advance();
-
-            // Handle nullable types (e.g., string?)
-            if (ctx.match(TokenType.QUESTION_MARK)) {
-                typeToken = new Token(TokenType.IDENTIFIER, typeToken.lexeme + "?", typeToken.literal, typeToken.line, typeToken.column);
-            }
-
+        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE)) {
+            Token typeToken = parseTypeToken();
             return variableDeclaration(tags, typeToken);
         }
 
@@ -117,11 +111,42 @@ public class Parser
         return statement();
     }
 
+    private Token parseTypeToken() {
+        Token baseType = ctx.advance();
+        
+        if (ctx.match(TokenType.LESS)) {
+            Token elementType = consume(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, "Expect element type after '<'.");
+            consume(TokenType.GREATER, "Expect '>' after element type.");
+            
+            String typedTypeName = baseType.lexeme + "<" + elementType.lexeme + ">";
+            Token typedToken = new Token(TokenType.IDENTIFIER, typedTypeName, null, baseType.line, baseType.column);
+            
+            if (ctx.match(TokenType.QUESTION_MARK)) {
+                return new Token(TokenType.IDENTIFIER, typedTypeName + "?", null, baseType.line, baseType.column);
+            }
+            
+            return typedToken;
+        }
+        
+        if (ctx.match(TokenType.QUESTION_MARK)) {
+            return new Token(TokenType.IDENTIFIER, baseType.lexeme + "?", baseType.literal, baseType.line, baseType.column);
+        }
+        
+        return baseType;
+    }
+    
+    private Token consume(TokenType type1, TokenType type2, TokenType type3, TokenType type4, String message) {
+        if (ctx.check(type1) || ctx.check(type2) || ctx.check(type3) || ctx.check(type4)) {
+            return ctx.advance();
+        }
+        throw error(ctx.peek(), message);
+    }
+
 
     private Statement importStatement()
     {
         Token moduleName;
-        if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE))
+        if (ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE))
         {
             moduleName = ctx.previous();
         }
@@ -169,21 +194,10 @@ public class Parser
                 Token typeToken = null;
                 if (ctx.match(TokenType.COLON))
                 {
-                    Token baseType = ctx.match(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE)
-                            ? ctx.previous()
-                            : null;
-
-                    if (baseType == null) {
+                    if (ctx.check(TokenType.IDENTIFIER, TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE)) {
+                        typeToken = parseTypeToken();
+                    } else {
                         throw error(ctx.peek(), "Expect parameter type.");
-                    }
-
-                    if (ctx.match(TokenType.QUESTION_MARK))
-                    {
-                        typeToken = new Token(TokenType.IDENTIFIER, baseType.lexeme + "?", baseType.literal, baseType.line, baseType.column);
-                    }
-                    else
-                    {
-                        typeToken = baseType;
                     }
                 }
                 parameters.add(new FunctionDeclaration.Parameter(paramName, typeToken));
@@ -236,11 +250,13 @@ public class Parser
         {
             initializer = null;
         }
-        else if (ctx.match(TokenType.INT, TokenType.FLOAT, TokenType.STRING_TYPE, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.VAR))
+        else if (ctx.match(TokenType.INT, TokenType.FLOAT, TokenType.STRING_TYPE, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE, TokenType.VAR))
         {
             Token typeToken = ctx.previous();
-            if (ctx.match(TokenType.QUESTION_MARK))
-            {
+            if (typeToken.type != TokenType.VAR) {
+                ctx.current--;
+                typeToken = parseTypeToken();
+            } else if (ctx.match(TokenType.QUESTION_MARK)) {
                 typeToken = new Token(TokenType.IDENTIFIER, typeToken.lexeme + "?", typeToken.literal, typeToken.line, typeToken.column);
             }
             initializer = variableDeclaration(new ArrayList<>(), typeToken);
@@ -568,6 +584,20 @@ public class Parser
             Expression expr = expression();
             consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
             return expr;
+        }
+        if (ctx.match(TokenType.BYTES_TYPE))
+        {
+            consume(TokenType.LEFT_BRACKET, "Expect '[' after 'bytes'.");
+            List<Expression> elements = new ArrayList<>();
+            if (!ctx.check(TokenType.RIGHT_BRACKET))
+            {
+                do
+                {
+                    elements.add(expression());
+                } while (ctx.match(TokenType.COMMA));
+            }
+            consume(TokenType.RIGHT_BRACKET, "Expect ']' after bytes elements.");
+            return new BytesLiteral(elements);
         }
         if (ctx.match(TokenType.LEFT_BRACKET))
         {
