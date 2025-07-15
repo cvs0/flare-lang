@@ -88,7 +88,20 @@ public class Parser {
             return functionDeclaration(tags);
         }
 
-        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE)) {
+        if (ctx.match(TokenType.SPAWN)) {
+            Expression fnOrBlock = expression();
+            return new SpawnStatement(fnOrBlock);
+        }
+
+        if (ctx.match(TokenType.YIELD)) {
+            return yieldStatement();
+        }
+
+        if (ctx.match(TokenType.AWAIT)) {
+            return awaitStatement();
+        }
+
+        if (ctx.check(TokenType.STRING_TYPE, TokenType.INT, TokenType.FLOAT, TokenType.BOOLEAN, TokenType.LIST_TYPE, TokenType.BUFFER_TYPE, TokenType.BYTES_TYPE, TokenType.FHANDLE)) {
             Token typeToken = parseTypeToken();
             return variableDeclaration(tags, typeToken);
         }
@@ -98,6 +111,19 @@ public class Parser {
         }
 
         return statement();
+    }
+
+    private Statement yieldStatement() {
+        // Syntax: yield;
+        consume(TokenType.SEMICOLON, "Expect ';' after yield statement.");
+        return new YieldStatement();
+    }
+
+    private Statement awaitStatement() {
+        // Syntax: await <fiberHandle>;
+        Expression handle = expression();
+        consume(TokenType.SEMICOLON, "Expect ';' after await statement.");
+        return new AwaitStatement(handle);
     }
 
     private Token parseTypeToken() {
@@ -477,6 +503,10 @@ public class Parser {
     }
 
     private Expression primary() {
+        if (ctx.match(TokenType.SPAWN)) {
+            Expression fnOrBlock = expression();
+            return new SpawnExpression(fnOrBlock);
+        }
         if (ctx.match(TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE)) {
             return new Literal(ctx.previous().literal, ctx.previous());
         }
@@ -659,4 +689,3 @@ public class Parser {
         }
     }
 }
-

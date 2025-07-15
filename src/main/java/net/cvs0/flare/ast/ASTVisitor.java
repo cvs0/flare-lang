@@ -36,4 +36,8 @@ public interface ASTVisitor<R> {
     R visitBytesLiteral(BytesLiteral node);
     R visitRangeExpression(RangeExpression node);
     R visitIndexAccess(IndexAccess node);
+    R visitSpawnStatement(SpawnStatement node);
+    R visitYieldStatement(YieldStatement node);
+    R visitAwaitStatement(AwaitStatement node);
+    R visitSpawnExpression(SpawnExpression node);
 }

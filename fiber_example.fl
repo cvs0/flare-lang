@@ -1,0 +1,22 @@
+import std;
+
+func backgroundTask() {
+    for (int i = 0; i < 3; i = i + 1) {
+        std.print("[fiber] i = " + i);
+        yield;
+    }
+    std.print("[fiber] done");
+}
+
+std.print("Spawning fiber...");
+fhandle handle1 = spawn backgroundTask();
+
+while (handle1.status == "running") {
+    std.print("Main: fiber is running...");
+    yield;
+}
+
+std.print("Main: fiber status after loop: " + handle1.status);
+
+await handle1;
+std.print("Main: fiber has finished (status: " + handle1.status + ")");

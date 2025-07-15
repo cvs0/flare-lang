@@ -698,6 +698,69 @@ public class Interpreter implements ASTVisitor<Value> {
         return leftValue;
     }
 
+    @Override
+    public Value visitSpawnStatement(SpawnStatement node) {
+        // Evaluate the function or block to run in a new fiber
+        Runnable fiberTask = () -> {
+            try {
+                if (node.functionOrBlock instanceof FunctionCall) {
+                    evaluate((FunctionCall) node.functionOrBlock);
+                } else if (node.functionOrBlock instanceof FunctionDeclaration) {
+                    execute((FunctionDeclaration) node.functionOrBlock);
+                } else {
+                    evaluate(node.functionOrBlock);
+                }
+            } catch (Exception e) {
+                InterpreterUtil.printStackTrace(new RuntimeException(e), callStack);
+            }
+        };
+        Thread fiberThread = new Thread(fiberTask, "fiber-" + System.nanoTime());
+        fiberThread.start();
+        return new Value(Type.FHANDLE, new FiberFHandle(fiberThread));
+    }
+
+    @Override
+    public Value visitSpawnExpression(SpawnExpression node) {
+        Runnable fiberTask = () -> {
+            try {
+                if (node.fnOrBlock instanceof FunctionCall) {
+                    evaluate((FunctionCall) node.fnOrBlock);
+                } else if (node.fnOrBlock instanceof FunctionDeclaration) {
+                    execute((FunctionDeclaration) node.fnOrBlock);
+                } else {
+                    evaluate(node.fnOrBlock);
+                }
+            } catch (Exception e) {
+                InterpreterUtil.printStackTrace(new RuntimeException(e), callStack);
+            }
+        };
+        Thread fiberThread = new Thread(fiberTask, "fiber-" + System.nanoTime());
+        fiberThread.start();
+        return new Value(Type.FHANDLE, new FiberFHandle(fiberThread));
+    }
+
+    @Override
+    public Value visitYieldStatement(YieldStatement node) {
+        Thread.yield();
+        return null;
+    }
+
+    @Override
+    public Value visitAwaitStatement(AwaitStatement node) {
+        Value handleValue = evaluate(node.fiberHandle);
+        if (handleValue != null && handleValue.data instanceof FiberFHandle) {
+            FiberFHandle handle = (FiberFHandle) handleValue.data;
+            try {
+                handle.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Fiber await interrupted");
+            }
+            return null;
+        } else {
+            throw new RuntimeException("await expects a FiberFHandle");
+        }
+    }
+
     private Value evaluate(Expression expr) {
         return expr.accept(this);
     }
@@ -937,8 +1000,12 @@ public class Interpreter implements ASTVisitor<Value> {
                     });
                 }
                 break;
+            case "status":
+                if (object.data instanceof FiberFHandle) {
+                    return new Value(Type.STRING, ((FiberFHandle) object.data).getStatus());
+                }
+                break;
         }
-        
         throw new RuntimeException("Unknown method '" + methodName + "' on type " + object.type);
     }
 }

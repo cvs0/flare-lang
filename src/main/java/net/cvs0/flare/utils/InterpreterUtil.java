@@ -93,6 +93,8 @@ public class InterpreterUtil {
             case IDENTIFIER:
                 if ("any".equals(typeToken.lexeme)) return Type.ANY;
                 throw new RuntimeException("Unknown type token: " + typeToken.lexeme);
+            case FHANDLE:
+                return Type.FHANDLE;
             default:
                 throw new RuntimeException("Unknown type token: " + typeToken.lexeme);
         }

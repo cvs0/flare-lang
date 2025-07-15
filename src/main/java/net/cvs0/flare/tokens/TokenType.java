@@ -28,6 +28,11 @@ public enum TokenType {
     PLUS_ASSIGN,
     AS,
     WHILE,
+    SPAWN,
+    YIELD,
+    AWAIT,
+
+    FHANDLE,
 
     EOF
 }

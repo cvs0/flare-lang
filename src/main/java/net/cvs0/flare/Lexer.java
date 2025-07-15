@@ -47,6 +47,10 @@ public class Lexer {
         keywords.put("list", TokenType.LIST_TYPE);
         keywords.put("buffer", TokenType.BUFFER_TYPE);
         keywords.put("bytes", TokenType.BYTES_TYPE);
+        keywords.put("spawn", TokenType.SPAWN);
+        keywords.put("yield", TokenType.YIELD);
+        keywords.put("await", TokenType.AWAIT);
+        keywords.put("fhandle", TokenType.FHANDLE);
     }
 
     public Lexer(String source) {
