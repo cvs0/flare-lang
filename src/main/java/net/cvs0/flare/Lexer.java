@@ -3,6 +3,7 @@ package net.cvs0.flare;
 import net.cvs0.flare.context.LexerContext;
 import net.cvs0.flare.tokens.Token;
 import net.cvs0.flare.tokens.TokenType;
+import net.cvs0.flare.utils.LexerUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +44,13 @@ public class Lexer {
         keywords.put("as", TokenType.AS);
         keywords.put("while", TokenType.WHILE);
         keywords.put("null", TokenType.NULL);
+        keywords.put("list", TokenType.LIST_TYPE);
+        keywords.put("buffer", TokenType.BUFFER_TYPE);
+        keywords.put("bytes", TokenType.BYTES_TYPE);
+        keywords.put("spawn", TokenType.SPAWN);
+        keywords.put("yield", TokenType.YIELD);
+        keywords.put("await", TokenType.AWAIT);
+        keywords.put("fhandle", TokenType.FHANDLE);
     }
 
     public Lexer(String source) {
@@ -61,6 +69,9 @@ public class Lexer {
         return tokens;
     }
 
+    /**
+     * Scans the next token and adds it to the token list.
+     */
     private void scanToken() {
         char c = ctx.advance();
         switch (c) {
@@ -68,9 +79,17 @@ public class Lexer {
             case ')': addToken(TokenType.RIGHT_PAREN); break;
             case '{': addToken(TokenType.LEFT_BRACE); break;
             case '}': addToken(TokenType.RIGHT_BRACE); break;
+            case '[': addToken(TokenType.LEFT_BRACKET); break;
+            case ']': addToken(TokenType.RIGHT_BRACKET); break;
             case ';': addToken(TokenType.SEMICOLON); break;
             case ',': addToken(TokenType.COMMA); break;
-            case '.': addToken(TokenType.DOT); break;
+            case '.':
+                if (match('.')) {
+                    addToken(TokenType.DOT_DOT);
+                } else {
+                    addToken(TokenType.DOT);
+                }
+                break;
             case '+':
                 if (match('=')) {
                     addToken(TokenType.PLUS_ASSIGN);
@@ -89,7 +108,7 @@ public class Lexer {
                 break;
             case '/':
                 if (ctx.peek() == '/') {
-                    while (ctx.peek() != '\n' && !ctx.isAtEnd()) ctx.advance();
+                    skipLineComment();
                 } else {
                     addToken(TokenType.SLASH);
                 }
@@ -103,13 +122,11 @@ public class Lexer {
             case '&':
                 if (match('&')) {
                     addToken(TokenType.AND_AND);
-                } else {
                 }
                 break;
             case '|':
                 if (match('|')) {
                     addToken(TokenType.OR_OR);
-                } else {
                 }
                 break;
             case '>':
@@ -119,28 +136,28 @@ public class Lexer {
                 addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
                 break;
             case ' ': case '\r': case '\t':
+                // Ignore whitespace
                 break;
             case '\n':
+                // Ignore newlines (line/column tracking handled in context)
                 break;
             case '"': string(); break;
             case ':': addToken(TokenType.COLON); break;
             default:
-                if (isDigit(c)) {
+                if (LexerUtil.isDigit(c)) {
                     number();
-                } else if (isAlpha(c)) {
+                } else if (LexerUtil.isAlpha(c)) {
                     identifier();
-                } else {
                 }
                 break;
         }
     }
 
-    private boolean match(char expected) {
-        if (ctx.isAtEnd()) return false;
-        if (ctx.source.charAt(ctx.current) != expected) return false;
-        ctx.current++;
-        ctx.column++;
-        return true;
+    /**
+     * Skips a line comment.
+     */
+    private void skipLineComment() {
+        while (ctx.peek() != '\n' && !ctx.isAtEnd()) ctx.advance();
     }
 
     private void addToken(TokenType type) {
@@ -153,22 +170,20 @@ public class Lexer {
     }
 
     private void identifier() {
-        while (isAlphaNumeric(ctx.peek())) ctx.advance();
+        while (LexerUtil.isAlphaNumeric(ctx.peek())) ctx.advance();
         String text = ctx.source.substring(ctx.start, ctx.current);
-
         TokenType type = keywords.getOrDefault(text, TokenType.IDENTIFIER);
         addToken(type);
-        
         if (match('?')) {
             addToken(TokenType.QUESTION_MARK);
         }
     }
 
     private void number() {
-        while (isDigit(ctx.peek())) ctx.advance();
-        if (ctx.peek() == '.' && isDigit(ctx.peekNext())) {
+        while (LexerUtil.isDigit(ctx.peek())) ctx.advance();
+        if (ctx.peek() == '.' && LexerUtil.isDigit(ctx.peekNext())) {
             ctx.advance();
-            while (isDigit(ctx.peek())) ctx.advance();
+            while (LexerUtil.isDigit(ctx.peek())) ctx.advance();
         }
         String text = ctx.source.substring(ctx.start, ctx.current);
         addToken(TokenType.NUMBER, Double.parseDouble(text));
@@ -186,15 +201,11 @@ public class Lexer {
         addToken(TokenType.STRING, value);
     }
 
-    private boolean isDigit(char c) {
-        return c >= '0' && c <= '9';
-    }
-
-    private boolean isAlpha(char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-    }
-
-    private boolean isAlphaNumeric(char c) {
-        return isAlpha(c) || isDigit(c);
+    private boolean match(char expected) {
+        if (ctx.isAtEnd()) return false;
+        if (ctx.source.charAt(ctx.current) != expected) return false;
+        ctx.current++;
+        ctx.column++;
+        return true;
     }
 }

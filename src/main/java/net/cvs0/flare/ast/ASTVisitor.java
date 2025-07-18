@@ -32,4 +32,12 @@ public interface ASTVisitor<R> {
     R visitRegionBlock(RegionBlock node);
     R visitVariantDeclaration(VariantDeclaration node);
     R visitFiberBlock(FiberBlock node);
+    R visitListLiteral(ListLiteral node);
+    R visitBytesLiteral(BytesLiteral node);
+    R visitRangeExpression(RangeExpression node);
+    R visitIndexAccess(IndexAccess node);
+    R visitSpawnStatement(SpawnStatement node);
+    R visitYieldStatement(YieldStatement node);
+    R visitAwaitStatement(AwaitStatement node);
+    R visitSpawnExpression(SpawnExpression node);
 }

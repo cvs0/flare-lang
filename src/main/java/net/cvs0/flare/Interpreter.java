@@ -12,6 +12,7 @@ import net.cvs0.flare.tag.TagValue;
 import net.cvs0.flare.tokens.Token;
 import net.cvs0.flare.tokens.TokenType;
 import net.cvs0.flare.tokens.Type;
+import net.cvs0.flare.tokens.TypedType;
 import net.cvs0.flare.utils.InterpreterUtil;
 
 import java.util.ArrayList;
@@ -82,44 +83,46 @@ public class Interpreter implements ASTVisitor<Value> {
         }
     }
 
+    /**
+     * Executes a statement and handles call stack and error reporting.
+     */
     private Value execute(Statement stmt) {
         if (stmt == null) return null;
         try {
-            if (stmt instanceof FunctionDeclaration) {
-                FunctionDeclaration func = (FunctionDeclaration) stmt;
-                callStack.push("Function: " + func.name.lexeme);
-            } else if (stmt instanceof FunctionCall) {
-                FunctionCall call = (FunctionCall) stmt;
-                callStack.push("Call: " + call.callee.toString());
-            }
-
+            pushCallStackFrame(stmt);
             debugger.checkBreakpoint(stmt, callStack);
-
             if (stmt instanceof ReturnStatement) {
                 ReturnStatement returnStmt = (ReturnStatement) stmt;
                 return evaluate(returnStmt.value);
             }
-
             stmt.accept(this);
         } catch (RuntimeException e) {
-            printStackTrace(e);
+            InterpreterUtil.printStackTrace(e, callStack);
             throw e;
         } finally {
-            if (!callStack.isEmpty()) callStack.pop();
+            popCallStackFrame();
         }
         return null;
     }
 
-    private void printStackTrace(RuntimeException e) {
-        System.err.println("Error: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
-        System.err.println("Stack trace:");
-        if (callStack.isEmpty()) {
-            System.err.println("  (empty)");
-        } else {
-            for (String frame : callStack) {
-                System.err.println("  at " + frame);
-            }
+    /**
+     * Pushes a frame to the call stack for debugging.
+     */
+    private void pushCallStackFrame(Statement stmt) {
+        if (stmt instanceof FunctionDeclaration) {
+            FunctionDeclaration func = (FunctionDeclaration) stmt;
+            callStack.push("Function: " + func.name.lexeme);
+        } else if (stmt instanceof FunctionCall) {
+            FunctionCall call = (FunctionCall) stmt;
+            callStack.push("Call: " + call.callee.toString());
         }
+    }
+
+    /**
+     * Pops a frame from the call stack.
+     */
+    private void popCallStackFrame() {
+        if (!callStack.isEmpty()) callStack.pop();
     }
 
     @Override
@@ -128,19 +131,21 @@ public class Interpreter implements ASTVisitor<Value> {
                 ? evaluate(node.initializer)
                 : defaultValue(node.typeToken);
 
-        Type expectedType = InterpreterUtil.tokenTypeToType(node.typeToken);
+        if (node.typeToken.type == TokenType.IDENTIFIER && node.typeToken.lexeme.contains("<")) {
+            initValue = convertToTypedType(node.typeToken, initValue, node.name.lexeme);
+        } else {
+            Type expectedType = InterpreterUtil.tokenTypeToType(node.typeToken);
 
-        // Allow null assignment to nullable types (types ending with ?)
-        if (initValue != null && initValue.type == Type.NULL && node.typeToken.lexeme.endsWith("?")) {
-            // This is valid - null can be assigned to nullable types
-        }
-        // Otherwise perform normal type checking
-        else if (initValue != null && initValue.type != expectedType) {
-            throw new RuntimeException(
-                    "Type error: cannot assign " + initValue.type +
-                            " to variable '" + node.name.lexeme +
-                            "' of type " + expectedType
-            );
+            if (initValue != null && initValue.type == Type.NULL && node.typeToken.lexeme.endsWith("?")) {
+                // This is valid - null can be assigned to nullable types
+            }
+            else if (initValue != null && initValue.type != expectedType) {
+                throw new RuntimeException(
+                        "Type error: cannot assign " + initValue.type +
+                                " to variable '" + node.name.lexeme +
+                                "' of type " + expectedType
+                );
+            }
         }
 
         InterpreterUtil.defineVariable(
@@ -158,8 +163,6 @@ public class Interpreter implements ASTVisitor<Value> {
         Value currentValue = context.get().get(node.name.lexeme);
         
         // For now, we'll allow NULL assignments to any variable
-        // In a more robust implementation, you would track variable types
-        // and only allow NULL for nullable types
         
         switch (node.operator.type) {
             case ASSIGN:
@@ -199,8 +202,7 @@ public class Interpreter implements ASTVisitor<Value> {
     public Value visitFunctionDeclaration(FunctionDeclaration node) {
         String signature = generateFunctionSignature(node);
         
-        // Check if a function with the exact same signature already exists
-        // Allow redefinition in global context (for REPL file reloading)
+
         if (context.get().contains(signature) && context.get() != globals) {
             throw new RuntimeException("Function '" + node.name.lexeme + "' with signature '" + signature + "' is already defined.");
         }
@@ -313,12 +315,10 @@ public class Interpreter implements ASTVisitor<Value> {
 
     @Override
     public Value visitFunctionCall(FunctionCall node) {
-        // Check if this is a simple function call (VariableReference)
         if (node.callee instanceof VariableReference) {
             VariableReference var = (VariableReference) node.callee;
             String functionName = var.name.lexeme;
             
-            // Evaluate arguments to determine their types
             List<Value> argValues = new ArrayList<>();
             List<String> argTypes = new ArrayList<>();
             for (Expression argExpr : node.arguments) {
@@ -327,10 +327,8 @@ public class Interpreter implements ASTVisitor<Value> {
                 argTypes.add(getValueTypeName(argValue));
             }
             
-            // Generate signature for function lookup
             String signature = generateCallSignature(functionName, argTypes);
             
-            // Try to find function with exact signature
             Value functionValue = null;
             if (context.get().contains(signature)) {
                 functionValue = context.get().get(signature);
@@ -346,7 +344,6 @@ public class Interpreter implements ASTVisitor<Value> {
             throw new RuntimeException("No matching function found for '" + functionName + "' with signature '" + signature + "'");
         }
         
-        // For other types of callees (like module functions), try to evaluate normally
         try {
             Value calleeValue = evaluate(node.callee);
 
@@ -387,6 +384,15 @@ public class Interpreter implements ASTVisitor<Value> {
                     return new Value(Type.FLOAT, toFloat(left) + toFloat(right));
                 if (left.type == Type.STRING || right.type == Type.STRING)
                     return new Value(Type.STRING, left.data.toString() + right.data.toString());
+                if (left.type == Type.LIST && right.type == Type.LIST) {
+                    @SuppressWarnings("unchecked")
+                    List<Value> leftList = (List<Value>) left.data;
+                    @SuppressWarnings("unchecked")
+                    List<Value> rightList = (List<Value>) right.data;
+                    List<Value> result = new ArrayList<>(leftList);
+                    result.addAll(rightList);
+                    return new Value(Type.LIST, result);
+                }
                 break;
             case MINUS:
                 if (left.type == Type.INT && right.type == Type.INT)
@@ -605,7 +611,8 @@ public class Interpreter implements ASTVisitor<Value> {
             }
             return new Value(Type.TAG, new TagValue(variantDecl.name.lexeme, node.right));
         }
-        throw new RuntimeException("Dot access only supported on modules and variants");
+        
+        return handleBuiltInMethod(left, node.right);
     }
 
     @Override
@@ -691,6 +698,69 @@ public class Interpreter implements ASTVisitor<Value> {
         return leftValue;
     }
 
+    @Override
+    public Value visitSpawnStatement(SpawnStatement node) {
+        // Evaluate the function or block to run in a new fiber
+        Runnable fiberTask = () -> {
+            try {
+                if (node.functionOrBlock instanceof FunctionCall) {
+                    evaluate((FunctionCall) node.functionOrBlock);
+                } else if (node.functionOrBlock instanceof FunctionDeclaration) {
+                    execute((FunctionDeclaration) node.functionOrBlock);
+                } else {
+                    evaluate(node.functionOrBlock);
+                }
+            } catch (Exception e) {
+                InterpreterUtil.printStackTrace(new RuntimeException(e), callStack);
+            }
+        };
+        Thread fiberThread = new Thread(fiberTask, "fiber-" + System.nanoTime());
+        fiberThread.start();
+        return new Value(Type.FHANDLE, new FiberFHandle(fiberThread));
+    }
+
+    @Override
+    public Value visitSpawnExpression(SpawnExpression node) {
+        Runnable fiberTask = () -> {
+            try {
+                if (node.fnOrBlock instanceof FunctionCall) {
+                    evaluate((FunctionCall) node.fnOrBlock);
+                } else if (node.fnOrBlock instanceof FunctionDeclaration) {
+                    execute((FunctionDeclaration) node.fnOrBlock);
+                } else {
+                    evaluate(node.fnOrBlock);
+                }
+            } catch (Exception e) {
+                InterpreterUtil.printStackTrace(new RuntimeException(e), callStack);
+            }
+        };
+        Thread fiberThread = new Thread(fiberTask, "fiber-" + System.nanoTime());
+        fiberThread.start();
+        return new Value(Type.FHANDLE, new FiberFHandle(fiberThread));
+    }
+
+    @Override
+    public Value visitYieldStatement(YieldStatement node) {
+        Thread.yield();
+        return null;
+    }
+
+    @Override
+    public Value visitAwaitStatement(AwaitStatement node) {
+        Value handleValue = evaluate(node.fiberHandle);
+        if (handleValue != null && handleValue.data instanceof FiberFHandle) {
+            FiberFHandle handle = (FiberFHandle) handleValue.data;
+            try {
+                handle.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Fiber await interrupted");
+            }
+            return null;
+        } else {
+            throw new RuntimeException("await expects a FiberFHandle");
+        }
+    }
+
     private Value evaluate(Expression expr) {
         return expr.accept(this);
     }
@@ -707,6 +777,47 @@ public class Interpreter implements ASTVisitor<Value> {
 
     private Value defaultValue(Token typeToken) {
         return InterpreterUtil.defaultValue(typeToken);
+    }
+    
+    private Value convertToTypedType(Token typeToken, Value value, String variableName) {
+        if (value == null) return null;
+        
+        TypedType expectedTypedType = InterpreterUtil.parseTypedType(typeToken);
+
+        if (value.type == Type.NULL && typeToken.lexeme.endsWith("?")) {
+            return value;
+        }
+        
+        if ((value.type == Type.LIST && expectedTypedType.baseType == Type.BUFFER) ||
+            (value.type == Type.BUFFER && expectedTypedType.baseType == Type.LIST) ||
+            (value.type == expectedTypedType.baseType)) {
+            
+            if (expectedTypedType.baseType == Type.LIST || expectedTypedType.baseType == Type.BUFFER) {
+                @SuppressWarnings("unchecked")
+                List<Value> list = (List<Value>) value.data;
+                for (Value element : list) {
+                    if (element.type != expectedTypedType.elementType) {
+                        throw new RuntimeException(
+                            "Type error: list element of type " + element.type + 
+                            " does not match expected element type " + expectedTypedType.elementType +
+                            " for variable '" + variableName + "'"
+                        );
+                    }
+                }
+                
+                return new Value(expectedTypedType, value.data);
+            }
+        }
+        
+        if (value.type != expectedTypedType.baseType) {
+            throw new RuntimeException(
+                "Type error: cannot assign " + value.type + 
+                " to variable '" + variableName + 
+                "' of type " + expectedTypedType
+            );
+        }
+        
+        return value;
     }
 
     private void withNewContext(Runnable block) {
@@ -751,7 +862,150 @@ public class Interpreter implements ASTVisitor<Value> {
         }
     }
 
+    @Override
+    public Value visitListLiteral(ListLiteral node) {
+        List<Value> elements = new ArrayList<>();
+        for (Expression element : node.elements) {
+            Value evaluated = evaluate(element);
+            if (element instanceof RangeExpression && evaluated.type == Type.LIST) {
+                @SuppressWarnings("unchecked")
+                List<Value> rangeElements = (List<Value>) evaluated.data;
+                elements.addAll(rangeElements);
+            } else {
+                elements.add(evaluated);
+            }
+        }
+        return new Value(Type.LIST, elements);
+    }
+
+    @Override
+    public Value visitBytesLiteral(BytesLiteral node) {
+        byte[] bytes = new byte[node.elements.size()];
+        for (int i = 0; i < node.elements.size(); i++) {
+            Value element = evaluate(node.elements.get(i));
+            if (element.type != Type.INT) {
+                throw new RuntimeException("Bytes literal elements must be integers");
+            }
+            int value = (int) element.data;
+            if (value < 0 || value > 255) {
+                throw new RuntimeException("Byte value must be between 0 and 255, got: " + value);
+            }
+            bytes[i] = (byte) value;
+        }
+        return new Value(Type.BYTES, bytes);
+    }
+
+    @Override
+    public Value visitRangeExpression(RangeExpression node) {
+        Value startValue = evaluate(node.start);
+        Value endValue = evaluate(node.end);
+        
+        if (startValue.type != Type.INT || endValue.type != Type.INT) {
+            throw new RuntimeException("Range expressions require integer bounds");
+        }
+        
+        int start = (int) startValue.data;
+        int end = (int) endValue.data;
+        List<Value> elements = new ArrayList<>();
+        
+        for (int i = start; i <= end; i++) {
+            elements.add(new Value(Type.INT, i));
+        }
+        
+        return new Value(Type.LIST, elements);
+    }
+
+    @Override
+    public Value visitIndexAccess(IndexAccess node) {
+        Value objectValue = evaluate(node.object);
+        Value indexValue = evaluate(node.index);
+        
+        if (objectValue.type == Type.LIST || objectValue.type == Type.BUFFER) {
+            if (indexValue.type != Type.INT) {
+                throw new RuntimeException("List/Buffer index must be an integer");
+            }
+            
+            @SuppressWarnings("unchecked")
+            List<Value> list = (List<Value>) objectValue.data;
+            int index = (int) indexValue.data;
+            
+            if (index < 0 || index >= list.size()) {
+                throw new RuntimeException("List/Buffer index out of bounds: " + index);
+            }
+            
+            return list.get(index);
+        } else if (objectValue.type == Type.BYTES) {
+            if (indexValue.type != Type.INT) {
+                throw new RuntimeException("Bytes index must be an integer");
+            }
+            
+            byte[] bytes = (byte[]) objectValue.data;
+            int index = (int) indexValue.data;
+            
+            if (index < 0 || index >= bytes.length) {
+                throw new RuntimeException("Bytes index out of bounds: " + index);
+            }
+            
+            return new Value(Type.INT, bytes[index] & 0xFF);
+        } else {
+            throw new RuntimeException("Index access only supported on lists, buffers, and bytes");
+        }
+    }
+
     public FiberManager getFiberManager() {
         return fiberManager;
+    }
+    
+    private Value handleBuiltInMethod(Value object, String methodName) {
+        switch (methodName) {
+            case "toString":
+                return new Value(Type.FUNCTION, (java.util.function.Function<List<Value>, Value>) arguments -> {
+                    if (!arguments.isEmpty()) {
+                        throw new RuntimeException("toString() takes no arguments");
+                    }
+                    
+                    // Special handling for bytes - convert to string
+                    if (object.type == Type.BYTES) {
+                        byte[] bytes = (byte[]) object.data;
+                        return new Value(Type.STRING, new String(bytes));
+                    }
+                    
+                    return new Value(Type.STRING, object.toString());
+                });
+            case "length":
+                if (object.type == Type.STRING) {
+                    return new Value(Type.FUNCTION, (java.util.function.Function<List<Value>, Value>) arguments -> {
+                        if (!arguments.isEmpty()) {
+                            throw new RuntimeException("length() takes no arguments");
+                        }
+                        String str = (String) object.data;
+                        return new Value(Type.INT, str.length());
+                    });
+                } else if (object.type == Type.LIST || object.type == Type.BUFFER) {
+                    return new Value(Type.FUNCTION, (java.util.function.Function<List<Value>, Value>) arguments -> {
+                        if (!arguments.isEmpty()) {
+                            throw new RuntimeException("length() takes no arguments");
+                        }
+                        @SuppressWarnings("unchecked")
+                        List<Value> list = (List<Value>) object.data;
+                        return new Value(Type.INT, list.size());
+                    });
+                } else if (object.type == Type.BYTES) {
+                    return new Value(Type.FUNCTION, (java.util.function.Function<List<Value>, Value>) arguments -> {
+                        if (!arguments.isEmpty()) {
+                            throw new RuntimeException("length() takes no arguments");
+                        }
+                        byte[] bytes = (byte[]) object.data;
+                        return new Value(Type.INT, bytes.length);
+                    });
+                }
+                break;
+            case "status":
+                if (object.data instanceof FiberFHandle) {
+                    return new Value(Type.STRING, ((FiberFHandle) object.data).getStatus());
+                }
+                break;
+        }
+        throw new RuntimeException("Unknown method '" + methodName + "' on type " + object.type);
     }
 }

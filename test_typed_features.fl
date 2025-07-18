@@ -1,0 +1,22 @@
+// Test typed lists
+list<int> numbers = [1, 2, 3, 4, 5];
+list<string> names = ["Alice", "Bob", "Charlie"];
+
+// Test buffers
+buffer<int> intBuffer = [10, 20, 30];
+buffer<string> stringBuffer = ["hello", "world"];
+
+// Test bytes
+bytes data = bytes[65, 66, 67];
+
+// Test accessing elements
+int first = numbers[0];
+string name = names[1];
+int bufferValue = intBuffer[0];
+int byteValue = data[0];
+
+std.print("First number: " + first);
+std.print("Second name: " + name);
+std.print("First buffer value: " + bufferValue);
+std.print("First byte value: " + byteValue);
+std.print("Data as string: " + data.toString());
